@@ -25,12 +25,10 @@ jobs:
           mkdir -p layer
 
           docker cp "$CONTAINER_ID:/ffmpeg" layer/ffmpegv9
-          docker cp "$CONTAINER_ID:/ffprobe" layer/ffprobev9
 
           docker rm "$CONTAINER_ID"
 
           chmod 755 layer/ffmpegv9
-          chmod 755 layer/ffprobev9
 
           layer/ffmpegv9 -version
 
@@ -47,7 +45,7 @@ jobs:
         shell: bash
         run: |
           cd layer
-          zip -9 ../ffmpeg-layer.zip ffmpegv9 ffprobev9
+          zip -9 ../ffmpeg-layer.zip ffmpegv9
           cd ..
 
           sha256sum ffmpeg-layer.zip > SHA256SUMS.txt
