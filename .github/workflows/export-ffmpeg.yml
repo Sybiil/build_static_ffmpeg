@@ -1,0 +1,65 @@
+name: Export fully static FFmpeg
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pull and extract FFmpeg
+        shell: bash
+        run: |
+          set -eux
+
+          IMAGE="mwader/static-ffmpeg:9.0.1-amd64"
+
+          docker pull "$IMAGE"
+
+          CONTAINER_ID=$(docker create "$IMAGE")
+
+          mkdir -p layer
+
+          docker cp "$CONTAINER_ID:/ffmpeg" layer/ffmpegv9
+          docker cp "$CONTAINER_ID:/ffprobe" layer/ffprobev9
+
+          docker rm "$CONTAINER_ID"
+
+          chmod 755 layer/ffmpegv9
+          chmod 755 layer/ffprobev9
+
+          layer/ffmpegv9 -version
+
+          # 检查是否存在动态库依赖
+          if readelf -d layer/ffmpegv9 2>/dev/null | grep -q '(NEEDED)'; then
+            echo "错误：ffmpegv9 存在动态库依赖"
+            readelf -d layer/ffmpegv9
+            exit 1
+          fi
+
+          echo "验证通过：没有动态库依赖"
+
+      - name: Build Aliyun layer ZIP
+        shell: bash
+        run: |
+          cd layer
+          zip -9 ../ffmpeg-layer.zip ffmpegv9 ffprobev9
+          cd ..
+
+          sha256sum ffmpeg-layer.zip > SHA256SUMS.txt
+
+          unzip -Z -v ffmpeg-layer.zip | head -80
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-9.0.1-linux-amd64-layer
+          path: |
+            ffmpeg-layer.zip
+            SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
